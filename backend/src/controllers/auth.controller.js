@@ -2,6 +2,7 @@ import express from "express";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../lib/utils.js";
+
 /**
  *
  * @param {express.Request} req
@@ -38,16 +39,15 @@ export const signup = async (req, res) => {
          generateToken(savedUser._id, res);
          res.status(201).json({
             _id: newUser._id,
-             fullname: newUser.fullname,
+            fullname: newUser.fullname,
             email: newUser.email,
-            dp:newUser.dp
+            dp: newUser.dp,
          });
-      }
-      else{
-         res.status(400).json({message:"Invalid user data"});
+      } else {
+         res.status(400).json({ message: "Invalid user data" });
       }
    } catch (error) {
-      console.log("error:",error);
+      console.log("error:", error);
       return res.status(500).json({ message: "Internal Server error" });
    }
 };
@@ -60,19 +60,33 @@ export const signup = async (req, res) => {
 export const login = async (req, res) => {
    const { email, password } = req.body;
    try {
-      if (!email || !password) {
-         return res
-            .status(400)
-            .json({ message: "Input fields needs to be filled to login" });
-      }
-
       const user = await User.findOne({ email });
-      if (!user) {
+      if (!user)
          return res.status(400).json({ message: "Invalid credentials" });
-      }
 
-      if (user.password === password) {
-         return res.status(200).json({ message: "Mubarak ho" });
-      }
-   } catch (error) {}
+      const isPasswordCorrect = await bcrypt.compare(password, user.password);
+      if (!isPasswordCorrect)
+         return res.status(400).json({ message: "Invalid credentials" });
+
+      generateToken(user._id, res);
+      res.status(200).json({
+         _id: user._id,
+         fullname: user.fullname,
+         email: user.email,
+         profilePic: user.dp,
+      });
+   } catch (error) {
+      console.error("Error in login controller: ",error);
+      res.status(500).json({message:"Internal server error"});
+   }
+};
+
+/**
+ *
+ * @param {express.Request} req
+ * @param {express.Response} res
+ */
+export const logout = async (_, res) => {
+   res.cookie("jwt","",{maxAge:0})
+   res.status(200).json({mesasge:"Logged out successfully"})
 };
